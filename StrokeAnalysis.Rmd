@@ -1,0 +1,96 @@
+---
+title: "Stroke Predictive Analysis Notebook"
+output: html_notebook
+---
+Dataset source: https://www.kaggle.com/fedesoriano/stroke-prediction-dataset 
+Attribute Information
+1) id: unique identifier
+2) gender: "Male", "Female" or "Other"
+3) age: age of the patient
+4) hypertension: 0 if the patient doesn't have hypertension, 1 if the patient has hypertension
+5) heart_disease: 0 if the patient doesn't have any heart diseases, 1 if the patient has a heart disease
+6) ever_married: "No" or "Yes"
+7) work_type: "children", "Govt_jov", "Never_worked", "Private" or "Self-employed"
+8) Residence_type: "Rural" or "Urban"
+9) avg_glucose_level: average glucose level in blood
+10) bmi: body mass index
+11) smoking_status: "formerly smoked", "never smoked", "smokes" or "Unknown"*
+12) stroke: 1 if the patient had a stroke or 0 if not
+*Note: "Unknown" in smoking_status means that the information is unavailable for this patient
+```{r}
+#import csv
+strokeData <- read.csv('/Volumes/Starbuck/BioinforPy/HealthCareDataR/healthcare-dataset-stroke-data.csv', stringsAsFactors = TRUE)
+```
+
+
+```{r}
+#get a list of the column names
+names(strokeData)
+```
+```{r}
+#Determine which predictors are statistically significant in determining whether a stroke will occur
+#create data frame 
+strokeDf <- data.frame(strokeData)
+#view first 10 rows
+head(strokeDf, 10)
+```
+
+
+```{r}
+#get a list of column names
+names(strokeDf)
+```
+Let's start by examining the impact of hypertension on stroke incidence for the patients involved. 
+```{r}
+#Recall that a stroke is denoted by the number '1' 
+cat("Variables Prior to Transformation:\n")
+str(strokeDf)
+#convert the stroke variable into a 2 level factor
+strokeDf$stroke <- as.factor(strokeDf$stroke)
+strokeDf$hypertension <- as.factor(strokeDf$hypertension)
+cat("Variables After Two-Level Factor Conversion of Stroke:\n")
+str(strokeDf)
+```
+
+```{r}
+strokeMod <- glm(stroke~hypertension, data = strokeDf, family='binomial')
+summary(strokeMod)
+```
+This logistic Regression model provides the following insights:
+```{r}
+b0 <- coef(strokeMod)
+cat("The intercept coefficient value is", round(b0[1],3), "which represents the odds of people without hypertension having a stroke.")
+```
+Let's make predictions with based on the data we have.
+```{r}
+strokenohtn <- data.frame(hypertension="0")
+nohtnpred <- predict(strokeMod, strokenohtn, type='response')
+pctnohtn <- nohtnpred*100
+cat("Patients without hypertension, within this group, have a", round(nohtnpred,5), "probability of stroke which indicates a", round(pctnohtn, 3), "% chance of having a stroke.\nRelatively good odds of avoiding a life altering event such as a stroke.")
+```
+```{r}
+strokeWhtn <- data.frame(hypertension='1')
+htnPred <- predict(strokeMod, strokeWhtn, type='response')
+pctWhtn <- htnPred*100
+cat("Hypertensive patients, within this group, have a", round(htnPred,5), "probability of stroke which indicates a", round(pctWhtn, 3), "% chance of having a stroke.\nThis signals an increase in risk for patients diagnosed with hypertension.")
+```
+Let's take a look at the impact of heart disease on the risks of stroke in the patients included in this study.
+
+```{r}
+hDmodStrokeMod <- glm(stroke~heart_disease,data = strokeDf, family='binomial')
+summary(hDmodStrokeMod)
+```
+```{r}
+noHdpred <- data.frame(heart_disease="0")
+noHD <- predict(hDmodStrokeMod, noHdpred, type='response')
+pctnoHd <- noHD*100
+cat("Patients without heart disease, within this group, have a", round(noHD,5), "probability of stroke which indicates a", round(pctnoHd, 3), "% chance of having a stroke.")
+```
+
+```{r}
+hasHDdat <- data.frame(heart_disease="1")
+yesHDpred <- predict(hDmodStrokeMod, hasHDdat, type='response')
+pcthasHd <- yesHDpred*100
+cat("Patients with heart disease, within this group, have a", round(yesHDpred,5), "probability of stroke which indicates a", round(pcthasHd, 3), "% chance of having a stroke.\nThis signals an increase in risk for patients diagnosed with hypertension.")
+```
+
