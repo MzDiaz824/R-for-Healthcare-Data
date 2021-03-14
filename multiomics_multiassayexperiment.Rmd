@@ -1,0 +1,152 @@
+---
+title: "Multi-omics Analysis Workflow with MultiAssayExperiment"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+A demonstration of data management and analysis of multiple biological assays.
+We'll begin by installing the necessary packages and loading their respective libraries.
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("MultiAssayExperiment")
+
+BiocManager::install("RaggedExperiment")
+
+BiocManager::install("curatedTCGAData")
+
+BiocManager::install("GenomicDataCommons")
+
+BiocManager::install("SummarizedExperiment")
+
+BiocManager::install("SingleCellExperiment")
+
+BiocManager::install("TCGAutils")
+
+BiocManager::install("UpSetR")
+
+BiocManager::install("mirbase.db")
+
+BiocManager::install("AnnotationFilter")
+
+BiocManager::install("EnsDb.Hsapiens.v86")
+
+BiocManager::install("survival")
+
+BiocManager::install("survminer")
+
+BiocManager::install("pheatmap")
+```
+
+```{r}
+library(MultiAssayExperiment)
+library(GenomicRanges)
+library(RaggedExperiment)
+library(curatedTCGAData)
+library(GenomicDataCommons)
+library(SummarizedExperiment)
+library(SingleCellExperiment)
+library(TCGAutils)
+library(UpSetR)
+library(mirbase.db)
+library(AnnotationFilter)
+library(EnsDb.Hsapiens.v86)
+library(survival)
+library(survminer)
+library(pheatmap)
+```
+
+The TCGA dataset is provided with the MultiAssayExperiment package. There were 92 patients. All assays were NOT performed on every patient.
+Five assays included:
+1. RNASeqGeneNorm: gene mRNA abundance by RNA-seq
+2. gistict: GISTIC genomic copy number by gene
+3. RPPAArray: protein abundance by Reverse Phase Protein Array
+4. Mutations: non-silent somatic mutations by gene
+5. miRNASeqGene: microRNA abundane by microRNA-seq
+```{r}
+#import dataset
+data("miniACC")
+```
+
+```{r}
+miniACC
+```
+Examine the data by previewing the columns.
+```{r}
+colData(miniACC)
+```
+A more compressed way to preview the data for exploratory analysis would be to preview particular columns rather than all of the columns. Below we will preview the first 4 columns and their first 4 rows.
+```{r}
+colData(miniACC)[1:4,1:4]
+```
+We can select features we are interested in and examine them in tabular format. For example, a table is created to provide insight into the diversity of the patients involved. 
+```{r}
+table(miniACC$race)
+```
+We can also create a table to determine the age range of the patients in case we want to evaluate data by age range.
+```{r}
+table(miniACC$years_to_birth)
+```
+Let's look at the details of the experiments used. 
+```{r}
+experiments(miniACC)
+```
+A sampleMap can be created in order to examine the relationship between the biological units and experimental results.
+```{r}
+sampleMap(miniACC)
+cat("The column titled 'colname' displays identifiers of assay results.", "\nThe assay column provides the name of the assay.", "\nThe primary column displays identifiers of patients or biological units.")
+```
+Examine any metadata that corresponds with the experiment.
+```{r}
+metadata(miniACC)
+```
+Implementing the MultiAssayExperiment constructor function.
+```{r}
+MultiAssayExperiment(experiments=experiments(miniACC),
+                     colData=colData(miniACC),
+                     sampleMap=sampleMap(miniACC),
+                     metadata=metadata(miniACC))
+```
+Visualize how many samples have data for each assay combination.
+```{r}
+upsetSamples(miniACC)
+```
+Interpreting the "upset" Venn diagram created above we can draw the following conclusions:
+1. All 5 assays were performed on 43 patients
+2. All assays except the RPPAArray (reverse-phase protein) were performed on 32 patients
+3. 12 patients had only the Mutations and gistict assays
+*These are just a few conclusions that can be gathered from the "upset" Venn diagram.
+
+We can visualize patient survival using a Kaplan-meier plot.
+Step 1: Examine the data related to survival 
+```{r}
+#create survival object
+Surv(miniACC$days_to_death, miniACC$vital_status)
+```
+Step 2: Remove patients that do not have survival information (NA).
+```{r}
+#complete.cases returns a vector w/cases that are complete i.e. do not have missing values
+miniACCsurviv <- miniACC[, complete.cases(miniACC$days_to_death, miniACC$vital_status), ]
+
+#create survival curve using pathology_N_stage as the stratifying variable
+kMFit <- surv_fit(Surv(days_to_death, vital_status)~ pathology_N_stage, data=colData(miniACCsurviv))
+
+#Kaplan-meier plot
+ggsurvplot(kMFit, data=colData(miniACCsurviv), risk.table = TRUE)
+```
+You can perform multivariate Cox Regression on the dataset using RNA-seq, copy number, and pathology.
+```{r}
+#use subsetting to drop assays that don't have the gene of interest, EZH2
+wideMACC <- wideFormat(miniACC["EZH2", , ],
+                       colDataCols = c("vital_status", "days_to_death", "pathology_N_stage"))
+wideMACC$y = Surv(wideMACC$days_to_death, wideMACC$vital_status)
+head(wideMACC)
+```
+```{r}
+coxph(Surv(days_to_death, vital_status) ~ gistict_EZH2 + log2(RNASeq2GeneNorm_EZH2) + pathology_N_stage,
+      data=wideMACC)
+cat("Examination of the p-values indicates that RNASeq2GeneNormEZH2 or EZH2 expression is significantly associated with overall survival as it is the only assay with a p-value below 0.001")
+```
+
