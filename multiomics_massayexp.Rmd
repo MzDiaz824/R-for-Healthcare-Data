@@ -1,0 +1,96 @@
+---
+title: "Multi-omics Analysis Workflow with MultiAssayExperiment"
+output:
+  html_document:
+    df_print: paged
+---
+A demonstration of data management and analysis of multiple biological assays.
+We'll begin by installing the necessary packages and loading their respective libraries.
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("MultiAssayExperiment")
+
+BiocManager::install("RaggedExperiment")
+
+BiocManager::install("curatedTCGAData")
+
+BiocManager::install("GenomicDataCommons")
+
+BiocManager::install("SummarizedExperiment")
+
+BiocManager::install("SingleCellExperiment")
+
+BiocManager::install("TCGAutils")
+
+BiocManager::install("UpSetR")
+
+BiocManager::install("mirbase.db")
+
+BiocManager::install("AnnotationFilter")
+
+BiocManager::install("EnsDb.Hsapiens.v86")
+
+BiocManager::install("survival")
+
+BiocManager::install("survminer")
+
+BiocManager::install("pheatmap")
+```
+
+```{r}
+library(MultiAssayExperiment)
+library(GenomicRanges)
+library(RaggedExperiment)
+library(curatedTCGAData)
+library(GenomicDataCommons)
+library(SummarizedExperiment)
+library(SingleCellExperiment)
+library(TCGAutils)
+library(UpSetR)
+library(mirbase.db)
+library(AnnotationFilter)
+library(EnsDb.Hsapiens.v86)
+library(survival)
+library(survminer)
+library(pheatmap)
+```
+The TCGA dataset is provided with the MultiAssayExperiment package. There were 92 patients. All assays were NOT performed on every patient.
+Five assays included:
+1. RNASeqGeneNorm: gene mRNA abundance by RNA-seq
+2. gistict: GISTIC genomic copy number by gene
+3. RPPAArray: protein abundance by Reverse Phase Protein Array
+4. Mutations: non-silent somatic mutations by gene
+5. miRNASeqGene: microRNA abundane by microRNA-seq
+
+```{r}
+#import dataset
+data("miniACC")
+```
+
+```{r}
+miniACC
+```
+
+Examine the data.
+```{r}
+colData(miniACC)[1:4, 1:4]
+```
+```{r}
+#select features of interest and display as a table
+table(miniACC$race)
+```
+```{r}
+table(miniACC$days_to_death)
+```
+Explore the range of experiments included in the dataset. 
+```{r}
+experiments(miniACC)
+```
+Use sampleMap to provide graphical representation of relationship between biological units and experimental results.
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r}
+sampleMap(miniACC)
+```
+
